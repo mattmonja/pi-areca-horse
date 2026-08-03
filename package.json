@@ -1,14 +1,17 @@
 {
   "name": "pi-areca-horse",
-  "version": "1.0.0",
-  "description": "Animated galloping-horse splash screen and working indicator for Pi",
+  "version": "1.1.0",
+  "description": "Animated horse and dancing Ditto splash/working indicators for Pi",
   "type": "module",
   "keywords": [
     "pi-package",
     "pi-extension",
     "terminal",
     "spinner",
-    "ascii-art"
+    "ascii-art",
+    "braille",
+    "ditto",
+    "pixel-art"
   ],
   "repository": {
     "type": "git",
@@ -21,6 +24,8 @@
   "files": [
     "index.ts",
     "horse.json",
+    "ditto.json",
+    "ditto-braille.json",
     "README.md"
   ],
   "pi": {

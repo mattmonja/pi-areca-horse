@@ -1,0 +1,100 @@
+{
+  "source": "https://media.tenor.com/sQQ4ikAjQngAAAAi/dancing-ditto-ditto.gif",
+  "width": 20,
+  "height": 16,
+  "intervalMs": 100,
+  "palette": {
+    "p": [
+      184,
+      96,
+      224,
+      135
+    ],
+    "d": [
+      56,
+      56,
+      56,
+      236
+    ],
+    "w": [
+      255,
+      255,
+      255,
+      255
+    ]
+  },
+  "frames": [
+    [
+      "....................",
+      "....................",
+      "...ddd..dd..........",
+      "..dwwdddppdd........",
+      ".dppwwdppppdddd.....",
+      "ddpppppppppppddd....",
+      "ddppppppdpppppppdd..",
+      ".dppppppppppdpppdd..",
+      ".ddpppppddppppppd...",
+      "..ddppppddddppppd...",
+      "..ddppppppppppppd...",
+      "..ddppppppppppppdd..",
+      "..dppppppppppppppdd.",
+      ".dppppppppppppppppd.",
+      ".dppppppppddddpppdd.",
+      "..dddddddddddddddd.."
+    ],
+    [
+      "....................",
+      "....................",
+      "....................",
+      ".ddddd..ddd.........",
+      "ddppdddwwwddd.......",
+      "dpppppwwwpppdd.ddd..",
+      "dpppppppppppppddpdd.",
+      "dpppppppdpppppppppd.",
+      "ddppppppdpppdppppdd.",
+      "ddpppppppppppppppd..",
+      ".ddpppppddddppppppd.",
+      "..dpppppppppppppppdd",
+      ".ddppppppppppppppppd",
+      "ddpppppppppppppppppd",
+      "ddppppdddddddppppppd",
+      ".ddddddddddddddddddd"
+    ],
+    [
+      "....................",
+      "....................",
+      "....................",
+      "....................",
+      "..........ddd..dddd.",
+      "........ddddddddpddd",
+      "...ddddddwwwppppppdd",
+      "..ddpddpwwpppppppppd",
+      "..dpppppppppppppppdd",
+      ".ddppppdpppdppppppdd",
+      ".dpppppppppppppppdd.",
+      "ddppppppddddpppppd..",
+      "dppppppppppppppppdd.",
+      "dpppppppppppppppppdd",
+      "ddppppppddddddppppdd",
+      "ddddddddddddddddddd."
+    ],
+    [
+      "..............ddddd.",
+      "..........dd..dpppdd",
+      ".........ddddddpppdd",
+      ".......ddwwwppppppdd",
+      "....ddddpwwpppppppdd",
+      "...ddpppppppppppppd.",
+      "..ddpppppppdppppppd.",
+      "..ddppddpppppppppd..",
+      "...dppppddddpppppd..",
+      "...dppppddppppppdd..",
+      "..ddppppppppppppdd..",
+      "..dpppppppppppppdd..",
+      ".ddpppppppppppppdd..",
+      ".dpppppppppppppppdd.",
+      ".ddpppdddppppppppdd.",
+      "..dddddddddddddddd.."
+    ]
+  ]
+}

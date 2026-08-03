@@ -1,12 +1,14 @@
 /**
- * ARECA galloping-horse splash for pi.
+ * ARECA galloping-horse splash and dancing-Ditto spinner for pi.
  *
  * Plays the ASCII gallop cycle from github.com/mattmonja/areca (7 Muybridge
- * frames) as pi's startup screen — Rosé Pine palette, light "signal
- * degradation" glitch — then hands off to the normal pi UI. The same poses
- * are rasterized into a compact Braille horse that replaces pi's working
- * spinner. Replay the full splash any time with /horse. Frames and the glitch
- * look-alike table live in horse.json next to this file.
+ * frames) as an optional splash screen — Rosé Pine palette, light "signal
+ * degradation" glitch — then hands off to the normal pi UI. While pi works,
+ * the four poses from Tenor's dancing-Ditto GIF animate as compact, full-color
+ * pixel art, with a compact Braille variant available too. Replay the previews
+ * with /horse, /ditto, and /ditto-braille, or switch the working indicator with
+ * /spinner ditto-pixel|ditto-braille|horse-braille. Animation data lives in horse.json, ditto.json,
+ * and ditto-braille.json next to this file.
  *
  * Distributed as the pi-areca-horse Pi package. Local auto-discovered copies
  * can be edited and hot-reloaded with /reload.
@@ -21,7 +23,8 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 const FRAME_MS = 90; // ms per gallop frame (lower = faster stride)
 const DURATION_MS = 3000; // auto-dismiss after this; set 0 to wait for a keypress
 const GLITCH = 0.1; // 0..1 areca signal-degradation intensity (0 disables it)
-const SHOW_ON_STARTUP = true; // play automatically when pi launches
+const SHOW_ON_STARTUP = false; // keep startup clear; /horse replays the splash
+const DITTO_SPLASH_DURATION_MS = 4000; // /ditto auto-dismisses after this
 const WORKING_HORSE_WIDTH = 14; // terminal columns for pi's working indicator
 const WORKING_HORSE_HEIGHT = 4; // terminal rows for pi's working indicator
 const WORKING_HORSE_INK_THRESHOLD = 0.15; // suppress downsampling noise
@@ -34,10 +37,31 @@ const BRAND = "A R E C A   T E C H   L T D.";
 // ────────────────────────────────────────────────────────────────────────────
 
 type HorseData = { frames: string[]; similar: Record<string, string[]> };
+type PixelColor = [red: number, green: number, blue: number, xterm: number];
+type DittoData = {
+	source: string;
+	width: number;
+	height: number;
+	intervalMs: number;
+	palette: Record<"p" | "d" | "w", PixelColor>;
+	frames: string[][];
+};
+type DittoBrailleData = {
+	source: string;
+	width: number;
+	height: number;
+	intervalMs: number;
+	frames: string[];
+};
 
-const data: HorseData = JSON.parse(
-	readFileSync(join(dirname(fileURLToPath(import.meta.url)), "horse.json"), "utf8"),
-) as HorseData;
+const extensionDir = dirname(fileURLToPath(import.meta.url));
+const data: HorseData = JSON.parse(readFileSync(join(extensionDir, "horse.json"), "utf8")) as HorseData;
+const dittoData: DittoData = JSON.parse(
+	readFileSync(join(extensionDir, "ditto.json"), "utf8"),
+) as DittoData;
+const dittoBrailleData: DittoBrailleData = JSON.parse(
+	readFileSync(join(extensionDir, "ditto-braille.json"), "utf8"),
+) as DittoBrailleData;
 
 // Crop every frame to the shared ink bounding box so the horse centres
 // accurately regardless of terminal size (drops the dead margin around it).
@@ -80,6 +104,62 @@ function paint(color: number[], text: string): string {
 	const open = TRUECOLOR ? `\x1b[38;2;${color[0]};${color[1]};${color[2]}m` : `\x1b[38;5;${color[3]}m`;
 	return `${open}${text}\x1b[39m`;
 }
+
+const RESET_CELL = "\x1b[39;49m";
+
+function foreground(color: PixelColor): string {
+	return TRUECOLOR
+		? `\x1b[38;2;${color[0]};${color[1]};${color[2]}m`
+		: `\x1b[38;5;${color[3]}m`;
+}
+
+function background(color: PixelColor): string {
+	return TRUECOLOR
+		? `\x1b[48;2;${color[0]};${color[1]};${color[2]}m`
+		: `\x1b[48;5;${color[3]}m`;
+}
+
+function dittoColor(code: string): PixelColor | undefined {
+	if (code !== "p" && code !== "d" && code !== "w") return undefined;
+	return dittoData.palette[code];
+}
+
+// Pair two source-pixel rows into terminal half blocks. Unlike the monochrome
+// horse raster, this retains Ditto's purple body, charcoal face, and highlight.
+function miniDitto(rows: string[]): string {
+	const out: string[] = [];
+	for (let y = 0; y < dittoData.height; y += 2) {
+		let line = "";
+		for (let x = 0; x < dittoData.width; x++) {
+			const topCode = rows[y]?.[x] ?? ".";
+			const bottomCode = rows[y + 1]?.[x] ?? ".";
+			const top = dittoColor(topCode);
+			const bottom = dittoColor(bottomCode);
+
+			if (!top && !bottom) {
+				line += " ";
+			} else if (top && !bottom) {
+				line += `${foreground(top)}▀${RESET_CELL}`;
+			} else if (!top && bottom) {
+				line += `${foreground(bottom)}▄${RESET_CELL}`;
+			} else if (topCode === bottomCode) {
+				line += `${foreground(top!)}█${RESET_CELL}`;
+			} else {
+				line += `${foreground(top!)}${background(bottom!)}▀${RESET_CELL}`;
+			}
+		}
+		out.push(line);
+	}
+	return out.join("\n");
+}
+
+const WORKING_DITTO_FRAMES = dittoData.frames.map(miniDitto);
+const WORKING_DITTO_BRAILLE_FRAMES = dittoBrailleData.frames.map((frame) =>
+	frame
+		.split("\n")
+		.map((line) => paint(dittoData.palette.p, line))
+		.join("\n"),
+);
 
 // Convert a full-size ASCII frame into a compact Braille raster. Each Braille
 // cell carries a 2x4 dot grid, retaining enough detail for the gait to read at
@@ -253,12 +333,172 @@ async function play(ctx: ExtensionContext): Promise<void> {
 	await ctx.ui.custom<void>((tui, _theme, _keybindings, done) => new HorseSplash(tui, () => done(undefined)));
 }
 
+function renderDittoPixelRow(row: string, pixelWidth: number): string {
+	let out = "";
+	for (const code of row) {
+		const color = dittoColor(code);
+		out += color ? `${background(color)}${" ".repeat(pixelWidth)}${RESET_CELL}` : " ".repeat(pixelWidth);
+	}
+	return out;
+}
+
+function renderDittoSplash(frame: number, width: number): string[] {
+	const termRows = process.stdout.rows && process.stdout.rows > 0 ? process.stdout.rows : 30;
+	const maxArtHeight = Math.max(1, termRows - 3);
+	const artHeight = Math.min(dittoData.height, maxArtHeight);
+	const pixelWidth = width >= dittoData.width * 2 ? 2 : 1;
+	const visiblePixels = Math.min(dittoData.width, Math.floor(width / pixelWidth));
+	const artWidth = visiblePixels * pixelWidth;
+	const leftPad = Math.max(0, Math.floor((width - artWidth) / 2));
+	const topPad = Math.max(0, Math.floor((termRows - artHeight - 3) / 2));
+	const rows = dittoData.frames[frame];
+	const out: string[] = [];
+
+	for (let i = 0; i < topPad; i++) out.push("");
+	for (let y = 0; y < artHeight; y++) {
+		const sourceY = Math.min(dittoData.height - 1, Math.floor((y * dittoData.height) / artHeight));
+		out.push(" ".repeat(leftPad) + renderDittoPixelRow(rows[sourceY].slice(0, visiblePixels), pixelWidth));
+	}
+	out.push("");
+	out.push(centre("D A N C I N G   D I T T O", width, dittoData.palette.p));
+	out.push(centre("press any key to skip", width, HINT_COLOR));
+	return out;
+}
+
+class DittoSplash {
+	private readonly tui: { requestRender: () => void };
+	private readonly finish: () => void;
+	private frame = 0;
+	private ticker: ReturnType<typeof setInterval> | null = null;
+	private timer: ReturnType<typeof setTimeout> | null = null;
+	private closed = false;
+
+	constructor(tui: { requestRender: () => void }, done: () => void) {
+		this.tui = tui;
+		this.finish = () => {
+			if (this.closed) return;
+			this.closed = true;
+			this.dispose();
+			done();
+		};
+		this.ticker = setInterval(() => {
+			this.frame = (this.frame + 1) % dittoData.frames.length;
+			this.tui.requestRender();
+		}, dittoData.intervalMs);
+		this.timer = setTimeout(this.finish, DITTO_SPLASH_DURATION_MS);
+		this.tui.requestRender();
+	}
+
+	handleInput(_data: string): void {
+		this.finish();
+	}
+
+	invalidate(): void {}
+
+	render(width: number): string[] {
+		return renderDittoSplash(this.frame, width);
+	}
+
+	dispose(): void {
+		if (this.ticker) clearInterval(this.ticker);
+		if (this.timer) clearTimeout(this.timer);
+		this.ticker = null;
+		this.timer = null;
+	}
+}
+
+async function playDitto(ctx: ExtensionContext): Promise<void> {
+	if (ctx.mode !== "tui") return;
+	await ctx.ui.custom<void>((tui, _theme, _keybindings, done) => new DittoSplash(tui, () => done(undefined)));
+}
+
+function renderDittoBrailleSplash(frame: number, width: number): string[] {
+	const termRows = process.stdout.rows && process.stdout.rows > 0 ? process.stdout.rows : 30;
+	const rows = dittoBrailleData.frames[frame].split("\n");
+	const topPad = Math.max(0, Math.floor((termRows - rows.length - 3) / 2));
+	const out: string[] = [];
+
+	for (let i = 0; i < topPad; i++) out.push("");
+	for (const row of rows) {
+		const clipped = row.length > width ? row.slice(0, width) : row;
+		const leftPad = Math.max(0, Math.floor((width - clipped.length) / 2));
+		out.push(" ".repeat(leftPad) + paint(dittoData.palette.p, clipped));
+	}
+	out.push("");
+	out.push(centre("B R A I L L E   D I T T O", width, dittoData.palette.p));
+	out.push(centre("press any key to skip", width, HINT_COLOR));
+	return out;
+}
+
+class DittoBrailleSplash {
+	private readonly tui: { requestRender: () => void };
+	private readonly finish: () => void;
+	private frame = 0;
+	private ticker: ReturnType<typeof setInterval> | null = null;
+	private timer: ReturnType<typeof setTimeout> | null = null;
+	private closed = false;
+
+	constructor(tui: { requestRender: () => void }, done: () => void) {
+		this.tui = tui;
+		this.finish = () => {
+			if (this.closed) return;
+			this.closed = true;
+			this.dispose();
+			done();
+		};
+		this.ticker = setInterval(() => {
+			this.frame = (this.frame + 1) % dittoBrailleData.frames.length;
+			this.tui.requestRender();
+		}, dittoBrailleData.intervalMs);
+		this.timer = setTimeout(this.finish, DITTO_SPLASH_DURATION_MS);
+		this.tui.requestRender();
+	}
+
+	handleInput(_data: string): void {
+		this.finish();
+	}
+
+	invalidate(): void {}
+
+	render(width: number): string[] {
+		return renderDittoBrailleSplash(this.frame, width);
+	}
+
+	dispose(): void {
+		if (this.ticker) clearInterval(this.ticker);
+		if (this.timer) clearTimeout(this.timer);
+		this.ticker = null;
+		this.timer = null;
+	}
+}
+
+async function playDittoBraille(ctx: ExtensionContext): Promise<void> {
+	if (ctx.mode !== "tui") return;
+	await ctx.ui.custom<void>(
+		(tui, _theme, _keybindings, done) => new DittoBrailleSplash(tui, () => done(undefined)),
+	);
+}
+
 export default function (pi: ExtensionAPI) {
-	pi.on("session_start", async (event, ctx) => {
-		if (ctx.mode === "tui") {
-			ctx.ui.setWorkingMessage("");
+	let workingAnimation: "ditto" | "braille" | "horse" = "ditto";
+
+	const applyWorkingAnimation = (ctx: ExtensionContext) => {
+		if (ctx.mode !== "tui") return;
+		ctx.ui.setWorkingMessage("");
+		if (workingAnimation === "ditto") {
+			ctx.ui.setWorkingIndicator({ frames: WORKING_DITTO_FRAMES, intervalMs: dittoData.intervalMs });
+		} else if (workingAnimation === "braille") {
+			ctx.ui.setWorkingIndicator({
+				frames: WORKING_DITTO_BRAILLE_FRAMES,
+				intervalMs: dittoBrailleData.intervalMs,
+			});
+		} else {
 			ctx.ui.setWorkingIndicator({ frames: WORKING_HORSE_FRAMES, intervalMs: FRAME_MS });
 		}
+	};
+
+	pi.on("session_start", async (event, ctx) => {
+		applyWorkingAnimation(ctx);
 		if (!SHOW_ON_STARTUP || event.reason !== "startup") return; // launch only
 		try {
 			await play(ctx);
@@ -271,6 +511,64 @@ export default function (pi: ExtensionAPI) {
 		description: "Replay the ARECA galloping-horse splash",
 		handler: async (_args, ctx) => {
 			await play(ctx);
+		},
+	});
+
+	pi.registerCommand("ditto", {
+		description: "Replay the pixel-art Ditto animation and use it as the working spinner",
+		handler: async (args, ctx) => {
+			const variant = args.trim().toLowerCase();
+			if (variant === "braille") {
+				workingAnimation = "braille";
+				applyWorkingAnimation(ctx);
+				await playDittoBraille(ctx);
+				return;
+			}
+			if (variant && variant !== "pixel") {
+				ctx.ui.notify("Usage: /ditto [pixel|braille]", "error");
+				return;
+			}
+			workingAnimation = "ditto";
+			applyWorkingAnimation(ctx);
+			await playDitto(ctx);
+		},
+	});
+
+	pi.registerCommand("ditto-braille", {
+		description: "Replay the Braille Ditto animation and use it as the working spinner",
+		handler: async (_args, ctx) => {
+			workingAnimation = "braille";
+			applyWorkingAnimation(ctx);
+			await playDittoBraille(ctx);
+		},
+	});
+
+	pi.registerCommand("spinner", {
+		description: "Choose the working indicator: /spinner ditto-pixel|ditto-braille|horse-braille",
+		handler: async (args, ctx) => {
+			const requested = args.trim().toLowerCase();
+			const names: Record<typeof workingAnimation, string> = {
+				ditto: "ditto-pixel",
+				braille: "ditto-braille",
+				horse: "horse-braille",
+			};
+			if (!requested) {
+				ctx.ui.notify(`Current spinner: ${names[workingAnimation]}`, "info");
+				return;
+			}
+			const choices: Record<string, typeof workingAnimation> = {
+				"ditto-pixel": "ditto",
+				"ditto-braille": "braille",
+				"horse-braille": "horse",
+			};
+			const choice = choices[requested];
+			if (!choice) {
+				ctx.ui.notify("Usage: /spinner ditto-pixel|ditto-braille|horse-braille", "error");
+				return;
+			}
+			workingAnimation = choice;
+			applyWorkingAnimation(ctx);
+			ctx.ui.notify(`Spinner set to ${requested}`, "info");
 		},
 	});
 }
