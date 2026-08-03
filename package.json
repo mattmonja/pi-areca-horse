@@ -1,0 +1,34 @@
+{
+  "name": "pi-areca-horse",
+  "version": "1.0.0",
+  "description": "Animated galloping-horse splash screen and working indicator for Pi",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "pi-extension",
+    "terminal",
+    "spinner",
+    "ascii-art"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mattmonja/pi-areca-horse.git"
+  },
+  "homepage": "https://github.com/mattmonja/pi-areca-horse#readme",
+  "bugs": {
+    "url": "https://github.com/mattmonja/pi-areca-horse/issues"
+  },
+  "files": [
+    "index.ts",
+    "horse.json",
+    "README.md"
+  ],
+  "pi": {
+    "extensions": [
+      "./index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  }
+}
