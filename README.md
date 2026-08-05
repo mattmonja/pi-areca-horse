@@ -32,7 +32,7 @@ Pi packages execute with your user permissions. Review third-party extension sou
 
 ## Usage
 
-The startup splash is disabled by default, and the pixel-art Ditto is the default working indicator. Replay the horse splash on demand:
+The startup splash is disabled by default, and the Braille horse is the default working indicator. Replay the horse splash on demand:
 
 ```text
 /horse
@@ -55,7 +55,7 @@ Switch the working indicator without opening a preview:
 /spinner horse-braille
 ```
 
-Run `/spinner` without an argument to show the current selection.
+Run `/spinner` without an argument to show the current selection. Your choice is saved globally and restored across Pi sessions. The preference lives in `pi-areca-horse.json` inside Pi's agent directory (`~/.pi/agent` by default).
 
 The extension does nothing in print, JSON, or RPC modes.
 

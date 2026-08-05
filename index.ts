@@ -17,7 +17,16 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import {
+	getAgentDir,
+	type ExtensionAPI,
+	type ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
+import {
+	isSpinnerPreference,
+	loadSpinnerPreference,
+	saveSpinnerPreference,
+} from "./spinner-preference.js";
 
 // ─── Tunables ─────────────────────────────────────────────────────────────
 const FRAME_MS = 90; // ms per gallop frame (lower = faster stride)
@@ -37,6 +46,7 @@ const BRAND = "A R E C A   T E C H   L T D.";
 // ────────────────────────────────────────────────────────────────────────────
 
 type HorseData = { frames: string[]; similar: Record<string, string[]> };
+type SpinnerChoice = "ditto-pixel" | "ditto-braille" | "horse-braille";
 type PixelColor = [red: number, green: number, blue: number, xterm: number];
 type DittoData = {
 	source: string;
@@ -55,6 +65,7 @@ type DittoBrailleData = {
 };
 
 const extensionDir = dirname(fileURLToPath(import.meta.url));
+const spinnerConfigPath = join(getAgentDir(), "pi-areca-horse.json");
 const data: HorseData = JSON.parse(readFileSync(join(extensionDir, "horse.json"), "utf8")) as HorseData;
 const dittoData: DittoData = JSON.parse(
 	readFileSync(join(extensionDir, "ditto.json"), "utf8"),
@@ -480,20 +491,35 @@ async function playDittoBraille(ctx: ExtensionContext): Promise<void> {
 }
 
 export default function (pi: ExtensionAPI) {
-	let workingAnimation: "ditto" | "braille" | "horse" = "ditto";
+	let workingAnimation = loadSpinnerPreference(spinnerConfigPath) as SpinnerChoice;
 
 	const applyWorkingAnimation = (ctx: ExtensionContext) => {
 		if (ctx.mode !== "tui") return;
 		ctx.ui.setWorkingMessage("");
-		if (workingAnimation === "ditto") {
+		if (workingAnimation === "ditto-pixel") {
 			ctx.ui.setWorkingIndicator({ frames: WORKING_DITTO_FRAMES, intervalMs: dittoData.intervalMs });
-		} else if (workingAnimation === "braille") {
+		} else if (workingAnimation === "ditto-braille") {
 			ctx.ui.setWorkingIndicator({
 				frames: WORKING_DITTO_BRAILLE_FRAMES,
 				intervalMs: dittoBrailleData.intervalMs,
 			});
 		} else {
 			ctx.ui.setWorkingIndicator({ frames: WORKING_HORSE_FRAMES, intervalMs: FRAME_MS });
+		}
+	};
+
+	const selectWorkingAnimation = async (ctx: ExtensionContext, choice: SpinnerChoice) => {
+		workingAnimation = choice;
+		applyWorkingAnimation(ctx);
+		try {
+			await saveSpinnerPreference(spinnerConfigPath, choice);
+			return true;
+		} catch {
+			ctx.ui.notify(
+				"Spinner changed for this session, but the preference could not be saved.",
+				"error",
+			);
+			return false;
 		}
 	};
 
@@ -519,8 +545,7 @@ export default function (pi: ExtensionAPI) {
 		handler: async (args, ctx) => {
 			const variant = args.trim().toLowerCase();
 			if (variant === "braille") {
-				workingAnimation = "braille";
-				applyWorkingAnimation(ctx);
+				await selectWorkingAnimation(ctx, "ditto-braille");
 				await playDittoBraille(ctx);
 				return;
 			}
@@ -528,8 +553,7 @@ export default function (pi: ExtensionAPI) {
 				ctx.ui.notify("Usage: /ditto [pixel|braille]", "error");
 				return;
 			}
-			workingAnimation = "ditto";
-			applyWorkingAnimation(ctx);
+			await selectWorkingAnimation(ctx, "ditto-pixel");
 			await playDitto(ctx);
 		},
 	});
@@ -537,8 +561,7 @@ export default function (pi: ExtensionAPI) {
 	pi.registerCommand("ditto-braille", {
 		description: "Replay the Braille Ditto animation and use it as the working spinner",
 		handler: async (_args, ctx) => {
-			workingAnimation = "braille";
-			applyWorkingAnimation(ctx);
+			await selectWorkingAnimation(ctx, "ditto-braille");
 			await playDittoBraille(ctx);
 		},
 	});
@@ -547,28 +570,16 @@ export default function (pi: ExtensionAPI) {
 		description: "Choose the working indicator: /spinner ditto-pixel|ditto-braille|horse-braille",
 		handler: async (args, ctx) => {
 			const requested = args.trim().toLowerCase();
-			const names: Record<typeof workingAnimation, string> = {
-				ditto: "ditto-pixel",
-				braille: "ditto-braille",
-				horse: "horse-braille",
-			};
 			if (!requested) {
-				ctx.ui.notify(`Current spinner: ${names[workingAnimation]}`, "info");
+				ctx.ui.notify(`Current spinner: ${workingAnimation}`, "info");
 				return;
 			}
-			const choices: Record<string, typeof workingAnimation> = {
-				"ditto-pixel": "ditto",
-				"ditto-braille": "braille",
-				"horse-braille": "horse",
-			};
-			const choice = choices[requested];
-			if (!choice) {
+			if (!isSpinnerPreference(requested)) {
 				ctx.ui.notify("Usage: /spinner ditto-pixel|ditto-braille|horse-braille", "error");
 				return;
 			}
-			workingAnimation = choice;
-			applyWorkingAnimation(ctx);
-			ctx.ui.notify(`Spinner set to ${requested}`, "info");
+			const persisted = await selectWorkingAnimation(ctx, requested as SpinnerChoice);
+			if (persisted) ctx.ui.notify(`Spinner set to ${requested}`, "info");
 		},
 	});
 }

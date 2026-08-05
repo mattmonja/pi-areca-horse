@@ -1,9 +1,12 @@
 {
   "name": "pi-areca-horse",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Animated horse and dancing Ditto splash/working indicators for Pi",
   "license": "MIT",
   "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
   "keywords": [
     "pi-package",
     "pi-extension",
@@ -27,6 +30,7 @@
     "horse.json",
     "ditto.json",
     "ditto-braille.json",
+    "spinner-preference.js",
     "README.md",
     "LICENSE"
   ],
