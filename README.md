@@ -70,3 +70,7 @@ After changing an auto-discovered local copy, run `/reload` in Pi. For an instal
 The full-size horse frames are the seven-pose Muybridge animation used by [mattmonja/areca](https://github.com/mattmonja/areca). The extension crops and downsamples those frames into the compact Braille horse at runtime.
 
 The Ditto indicators are terminal-friendly derivatives of the four-frame [dancing Ditto GIF on Tenor](https://media.tenor.com/sQQ4ikAjQngAAAAi/dancing-ditto-ditto.gif). `ditto.json` stores quantized pixel-art frames, while `ditto-braille.json` stores a compact Braille silhouette that preserves Ditto's face and movement.
+
+## License
+
+[MIT](./LICENSE) — use it, modify it, and share it freely.
