@@ -17,6 +17,8 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { truncateToWidth } from "@earendil-works/pi-tui";
+import { createWorkingAnimation } from "./working-animation.js";
 import {
 	getAgentDir,
 	type ExtensionAPI,
@@ -493,20 +495,17 @@ async function playDittoBraille(ctx: ExtensionContext): Promise<void> {
 export default function (pi: ExtensionAPI) {
 	let workingAnimation = loadSpinnerPreference(spinnerConfigPath) as SpinnerChoice;
 
-	const applyWorkingAnimation = (ctx: ExtensionContext) => {
-		if (ctx.mode !== "tui") return;
-		ctx.ui.setWorkingMessage("");
+	const indicator = createWorkingAnimation(truncateToWidth);
+	const animation = () => {
 		if (workingAnimation === "ditto-pixel") {
-			ctx.ui.setWorkingIndicator({ frames: WORKING_DITTO_FRAMES, intervalMs: dittoData.intervalMs });
-		} else if (workingAnimation === "ditto-braille") {
-			ctx.ui.setWorkingIndicator({
-				frames: WORKING_DITTO_BRAILLE_FRAMES,
-				intervalMs: dittoBrailleData.intervalMs,
-			});
-		} else {
-			ctx.ui.setWorkingIndicator({ frames: WORKING_HORSE_FRAMES, intervalMs: FRAME_MS });
+			return { frames: WORKING_DITTO_FRAMES, intervalMs: dittoData.intervalMs };
 		}
+		if (workingAnimation === "ditto-braille") {
+			return { frames: WORKING_DITTO_BRAILLE_FRAMES, intervalMs: dittoBrailleData.intervalMs };
+		}
+		return { frames: WORKING_HORSE_FRAMES, intervalMs: FRAME_MS };
 	};
+	const applyWorkingAnimation = (ctx: ExtensionContext) => indicator.configure(ctx, animation());
 
 	const selectWorkingAnimation = async (ctx: ExtensionContext, choice: SpinnerChoice) => {
 		workingAnimation = choice;
@@ -523,8 +522,12 @@ export default function (pi: ExtensionAPI) {
 		}
 	};
 
+	pi.on("agent_start", (_event, ctx) => indicator.start(ctx, animation()));
+	pi.on("agent_settled", () => indicator.stop());
+	pi.on("session_shutdown", () => indicator.dispose());
+
 	pi.on("session_start", async (event, ctx) => {
-		applyWorkingAnimation(ctx);
+		indicator.initialize(ctx, animation());
 		if (!SHOW_ON_STARTUP || event.reason !== "startup") return; // launch only
 		try {
 			await play(ctx);

@@ -16,6 +16,8 @@ Animated horse and Ditto splash/working indicators for [Pi](https://github.com/e
 
 ## Install
 
+Requires Pi 0.87.0 or newer.
+
 Follow the repository's default branch:
 
 ```bash
@@ -37,6 +39,11 @@ The startup splash is disabled by default, and the Braille horse is the default 
 ```text
 /horse
 ```
+
+While Pi works, the animation uses its own multiline widget above the editor.
+This keeps all four horse rows visible with Pi 0.87's single-line working border.
+The widget disappears when the agent settles; switching spinners or reloading
+the extension replaces the old animation and stops its timer.
 
 Preview and select a Ditto variant:
 
